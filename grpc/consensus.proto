@@ -6,45 +6,50 @@ option go_package = "consensus-go/grpc";
 
 message Nothing {}
 
-message MultiCastEvent {
-  NodeInfo nodeinfo = 1;
-  uint64 lamport = 2;
+message Event {
+  uint64 lamport = 1;
+  oneof event {
+    NodeInfo nodeinfo = 2;
+    Ok ok = 3;
+  }
+
+  message Ok {}
+
+  message NodeInfo {
+    string ip = 1;
+    uint32 port = 2;
+  }
 }
 
 service ConsensusService {
-  rpc Subscribe(Nothing) returns (stream MultiCastEvent);
-  rpc Reply( Nothing ) returns ( Nothing );
+  rpc AcceptRequest(Event) returns (Nothing)
+  rpc RequestAccess(Event) returns (Nothing);
 }
 
-message NodeInfo {
-  string ip = 1;
-  uint16 port = 2;
-}
-
-message DiscoveryServiceEvent {
-  uint64 timestamp = 1;
-
-  oneof event {
-    Accepted accepted_event = 2;
-    Heartbeat heartbeat_event = 3;
-  }
-
-  message Accepted {
-    uint32 id = 1;
-  }
-
-  message Heartbeat {}
-
-  message NewNodeJoined {
-    NodeInfo nodeinfo = 1;
-  }
-}
-
-service DiscoveryService {
-  rpc Join( NodeInfo ) returns (stream DiscoveryServiceEvent);
-  rpc Disconnect( NodeInfo ) returns ( Nothing );
-
-  rpc HowManyNodes() returns ( uint32 );
-}
-
+//message DiscoveryServiceEvent {
+//  uint64 timestamp = 1;
+//
+//  oneof event {
+//    Accepted accepted_event = 2;
+//    Heartbeat heartbeat_event = 3;
+//  }
+//
+//  message Accepted {
+//    uint32 id = 1;
+//  }
+//
+//  message Heartbeat {}
+//
+//  message NewNodeJoined {
+//    NodeInfo nodeinfo = 1;
+//  }
+//}
+//
+//service DiscoveryService {
+//  rpc Join( NodeInfo ) returns (stream DiscoveryServiceEvent);
+//  rpc Disconnect( NodeInfo ) returns ( Nothing );
+//
+//  rpc HowManyNodes() returns ( uint32 );
+//}
+//
 
