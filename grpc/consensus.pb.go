@@ -57,28 +57,27 @@ func (*Nothing) Descriptor() ([]byte, []int) {
 	return file_grpc_consensus_proto_rawDescGZIP(), []int{0}
 }
 
-type NodeInfo struct {
+type Ok struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Ip            string                 `protobuf:"bytes,1,opt,name=ip,proto3" json:"ip,omitempty"`
-	Port          uint32                 `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`
+	Lamport       uint32                 `protobuf:"varint,1,opt,name=lamport,proto3" json:"lamport,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *NodeInfo) Reset() {
-	*x = NodeInfo{}
+func (x *Ok) Reset() {
+	*x = Ok{}
 	mi := &file_grpc_consensus_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *NodeInfo) String() string {
+func (x *Ok) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*NodeInfo) ProtoMessage() {}
+func (*Ok) ProtoMessage() {}
 
-func (x *NodeInfo) ProtoReflect() protoreflect.Message {
+func (x *Ok) ProtoReflect() protoreflect.Message {
 	mi := &file_grpc_consensus_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -90,73 +89,74 @@ func (x *NodeInfo) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use NodeInfo.ProtoReflect.Descriptor instead.
-func (*NodeInfo) Descriptor() ([]byte, []int) {
+// Deprecated: Use Ok.ProtoReflect.Descriptor instead.
+func (*Ok) Descriptor() ([]byte, []int) {
 	return file_grpc_consensus_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *NodeInfo) GetIp() string {
+func (x *Ok) GetLamport() uint32 {
+	if x != nil {
+		return x.Lamport
+	}
+	return 0
+}
+
+type Request struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Lamport       uint32                 `protobuf:"varint,1,opt,name=lamport,proto3" json:"lamport,omitempty"`
+	Ip            string                 `protobuf:"bytes,2,opt,name=ip,proto3" json:"ip,omitempty"`
+	Port          uint32                 `protobuf:"varint,3,opt,name=port,proto3" json:"port,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Request) Reset() {
+	*x = Request{}
+	mi := &file_grpc_consensus_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Request) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Request) ProtoMessage() {}
+
+func (x *Request) ProtoReflect() protoreflect.Message {
+	mi := &file_grpc_consensus_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Request.ProtoReflect.Descriptor instead.
+func (*Request) Descriptor() ([]byte, []int) {
+	return file_grpc_consensus_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *Request) GetLamport() uint32 {
+	if x != nil {
+		return x.Lamport
+	}
+	return 0
+}
+
+func (x *Request) GetIp() string {
 	if x != nil {
 		return x.Ip
 	}
 	return ""
 }
 
-func (x *NodeInfo) GetPort() uint32 {
+func (x *Request) GetPort() uint32 {
 	if x != nil {
 		return x.Port
-	}
-	return 0
-}
-
-type Event struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Nodeinfo      *NodeInfo              `protobuf:"bytes,1,opt,name=nodeinfo,proto3" json:"nodeinfo,omitempty"`
-	Lamport       uint64                 `protobuf:"varint,2,opt,name=lamport,proto3" json:"lamport,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Event) Reset() {
-	*x = Event{}
-	mi := &file_grpc_consensus_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Event) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Event) ProtoMessage() {}
-
-func (x *Event) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_consensus_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Event.ProtoReflect.Descriptor instead.
-func (*Event) Descriptor() ([]byte, []int) {
-	return file_grpc_consensus_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *Event) GetNodeinfo() *NodeInfo {
-	if x != nil {
-		return x.Nodeinfo
-	}
-	return nil
-}
-
-func (x *Event) GetLamport() uint64 {
-	if x != nil {
-		return x.Lamport
 	}
 	return 0
 }
@@ -166,16 +166,16 @@ var File_grpc_consensus_proto protoreflect.FileDescriptor
 const file_grpc_consensus_proto_rawDesc = "" +
 	"\n" +
 	"\x14grpc/consensus.proto\x12\x04grpc\"\t\n" +
-	"\aNothing\".\n" +
-	"\bNodeInfo\x12\x0e\n" +
-	"\x02ip\x18\x01 \x01(\tR\x02ip\x12\x12\n" +
-	"\x04port\x18\x02 \x01(\rR\x04port\"M\n" +
-	"\x05Event\x12*\n" +
-	"\bnodeinfo\x18\x01 \x01(\v2\x0e.grpc.NodeInfoR\bnodeinfo\x12\x18\n" +
-	"\alamport\x18\x02 \x01(\x04R\alamport2h\n" +
-	"\x10ConsensusService\x12)\n" +
-	"\rAcceptRequest\x12\v.grpc.Event\x1a\v.grpc.Event\x12)\n" +
-	"\rRequestAccess\x12\v.grpc.Event\x1a\v.grpc.EventB\x13Z\x11consensus-go/grpcb\x06proto3"
+	"\aNothing\"\x1e\n" +
+	"\x02Ok\x12\x18\n" +
+	"\alamport\x18\x01 \x01(\rR\alamport\"G\n" +
+	"\aRequest\x12\x18\n" +
+	"\alamport\x18\x01 \x01(\rR\alamport\x12\x0e\n" +
+	"\x02ip\x18\x02 \x01(\tR\x02ip\x12\x12\n" +
+	"\x04port\x18\x03 \x01(\rR\x04port2k\n" +
+	"\x10ConsensusService\x12(\n" +
+	"\rAcceptRequest\x12\b.grpc.Ok\x1a\r.grpc.Nothing\x12-\n" +
+	"\rRequestAccess\x12\r.grpc.Request\x1a\r.grpc.NothingB\x13Z\x11consensus-go/grpcb\x06proto3"
 
 var (
 	file_grpc_consensus_proto_rawDescOnce sync.Once
@@ -191,21 +191,20 @@ func file_grpc_consensus_proto_rawDescGZIP() []byte {
 
 var file_grpc_consensus_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_grpc_consensus_proto_goTypes = []any{
-	(*Nothing)(nil),  // 0: grpc.Nothing
-	(*NodeInfo)(nil), // 1: grpc.NodeInfo
-	(*Event)(nil),    // 2: grpc.Event
+	(*Nothing)(nil), // 0: grpc.Nothing
+	(*Ok)(nil),      // 1: grpc.Ok
+	(*Request)(nil), // 2: grpc.Request
 }
 var file_grpc_consensus_proto_depIdxs = []int32{
-	1, // 0: grpc.Event.nodeinfo:type_name -> grpc.NodeInfo
-	2, // 1: grpc.ConsensusService.AcceptRequest:input_type -> grpc.Event
-	2, // 2: grpc.ConsensusService.RequestAccess:input_type -> grpc.Event
-	2, // 3: grpc.ConsensusService.AcceptRequest:output_type -> grpc.Event
-	2, // 4: grpc.ConsensusService.RequestAccess:output_type -> grpc.Event
-	3, // [3:5] is the sub-list for method output_type
-	1, // [1:3] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	1, // 0: grpc.ConsensusService.AcceptRequest:input_type -> grpc.Ok
+	2, // 1: grpc.ConsensusService.RequestAccess:input_type -> grpc.Request
+	0, // 2: grpc.ConsensusService.AcceptRequest:output_type -> grpc.Nothing
+	0, // 3: grpc.ConsensusService.RequestAccess:output_type -> grpc.Nothing
+	2, // [2:4] is the sub-list for method output_type
+	0, // [0:2] is the sub-list for method input_type
+	0, // [0:0] is the sub-list for extension type_name
+	0, // [0:0] is the sub-list for extension extendee
+	0, // [0:0] is the sub-list for field type_name
 }
 
 func init() { file_grpc_consensus_proto_init() }

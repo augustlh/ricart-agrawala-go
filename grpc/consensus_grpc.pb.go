@@ -27,8 +27,8 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ConsensusServiceClient interface {
-	AcceptRequest(ctx context.Context, in *Event, opts ...grpc.CallOption) (*Event, error)
-	RequestAccess(ctx context.Context, in *Event, opts ...grpc.CallOption) (*Event, error)
+	AcceptRequest(ctx context.Context, in *Ok, opts ...grpc.CallOption) (*Nothing, error)
+	RequestAccess(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Nothing, error)
 }
 
 type consensusServiceClient struct {
@@ -39,9 +39,9 @@ func NewConsensusServiceClient(cc grpc.ClientConnInterface) ConsensusServiceClie
 	return &consensusServiceClient{cc}
 }
 
-func (c *consensusServiceClient) AcceptRequest(ctx context.Context, in *Event, opts ...grpc.CallOption) (*Event, error) {
+func (c *consensusServiceClient) AcceptRequest(ctx context.Context, in *Ok, opts ...grpc.CallOption) (*Nothing, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Event)
+	out := new(Nothing)
 	err := c.cc.Invoke(ctx, ConsensusService_AcceptRequest_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -49,9 +49,9 @@ func (c *consensusServiceClient) AcceptRequest(ctx context.Context, in *Event, o
 	return out, nil
 }
 
-func (c *consensusServiceClient) RequestAccess(ctx context.Context, in *Event, opts ...grpc.CallOption) (*Event, error) {
+func (c *consensusServiceClient) RequestAccess(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Nothing, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Event)
+	out := new(Nothing)
 	err := c.cc.Invoke(ctx, ConsensusService_RequestAccess_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -63,8 +63,8 @@ func (c *consensusServiceClient) RequestAccess(ctx context.Context, in *Event, o
 // All implementations must embed UnimplementedConsensusServiceServer
 // for forward compatibility.
 type ConsensusServiceServer interface {
-	AcceptRequest(context.Context, *Event) (*Event, error)
-	RequestAccess(context.Context, *Event) (*Event, error)
+	AcceptRequest(context.Context, *Ok) (*Nothing, error)
+	RequestAccess(context.Context, *Request) (*Nothing, error)
 	mustEmbedUnimplementedConsensusServiceServer()
 }
 
@@ -75,10 +75,10 @@ type ConsensusServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedConsensusServiceServer struct{}
 
-func (UnimplementedConsensusServiceServer) AcceptRequest(context.Context, *Event) (*Event, error) {
+func (UnimplementedConsensusServiceServer) AcceptRequest(context.Context, *Ok) (*Nothing, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AcceptRequest not implemented")
 }
-func (UnimplementedConsensusServiceServer) RequestAccess(context.Context, *Event) (*Event, error) {
+func (UnimplementedConsensusServiceServer) RequestAccess(context.Context, *Request) (*Nothing, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RequestAccess not implemented")
 }
 func (UnimplementedConsensusServiceServer) mustEmbedUnimplementedConsensusServiceServer() {}
@@ -103,7 +103,7 @@ func RegisterConsensusServiceServer(s grpc.ServiceRegistrar, srv ConsensusServic
 }
 
 func _ConsensusService_AcceptRequest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Event)
+	in := new(Ok)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -115,13 +115,13 @@ func _ConsensusService_AcceptRequest_Handler(srv interface{}, ctx context.Contex
 		FullMethod: ConsensusService_AcceptRequest_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConsensusServiceServer).AcceptRequest(ctx, req.(*Event))
+		return srv.(ConsensusServiceServer).AcceptRequest(ctx, req.(*Ok))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _ConsensusService_RequestAccess_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Event)
+	in := new(Request)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func _ConsensusService_RequestAccess_Handler(srv interface{}, ctx context.Contex
 		FullMethod: ConsensusService_RequestAccess_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConsensusServiceServer).RequestAccess(ctx, req.(*Event))
+		return srv.(ConsensusServiceServer).RequestAccess(ctx, req.(*Request))
 	}
 	return interceptor(ctx, in, info, handler)
 }

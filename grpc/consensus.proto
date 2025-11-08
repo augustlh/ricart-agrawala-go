@@ -6,24 +6,19 @@ option go_package = "consensus-go/grpc";
 
 message Nothing {}
 
-message Event {
-  uint64 lamport = 1;
-  oneof event {
-    NodeInfo nodeinfo = 2;
-    Ok ok = 3;
-  }
+message Ok {
+  uint32 lamport = 1;
+}
 
-  message Ok {}
-
-  message NodeInfo {
-    string ip = 1;
-    uint32 port = 2;
-  }
+message Request {
+  uint32 lamport = 1;
+  string ip = 2;
+  uint32 port = 3;
 }
 
 service ConsensusService {
-  rpc AcceptRequest(Event) returns (Nothing)
-  rpc RequestAccess(Event) returns (Nothing);
+  rpc AcceptRequest(Ok) returns (Nothing);
+  rpc RequestAccess(Request) returns (Nothing);
 }
 
 //message DiscoveryServiceEvent {
