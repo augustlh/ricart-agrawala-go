@@ -161,6 +161,82 @@ func (x *Request) GetPort() uint32 {
 	return 0
 }
 
+type GossipInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Lamport       uint32                 `protobuf:"varint,1,opt,name=lamport,proto3" json:"lamport,omitempty"`
+	Ip            string                 `protobuf:"bytes,2,opt,name=ip,proto3" json:"ip,omitempty"`
+	Port          uint32                 `protobuf:"varint,3,opt,name=port,proto3" json:"port,omitempty"`
+	SenderIp      string                 `protobuf:"bytes,4,opt,name=senderIp,proto3" json:"senderIp,omitempty"`
+	SenderPort    uint32                 `protobuf:"varint,5,opt,name=senderPort,proto3" json:"senderPort,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GossipInfo) Reset() {
+	*x = GossipInfo{}
+	mi := &file_grpc_consensus_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GossipInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GossipInfo) ProtoMessage() {}
+
+func (x *GossipInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_grpc_consensus_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GossipInfo.ProtoReflect.Descriptor instead.
+func (*GossipInfo) Descriptor() ([]byte, []int) {
+	return file_grpc_consensus_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *GossipInfo) GetLamport() uint32 {
+	if x != nil {
+		return x.Lamport
+	}
+	return 0
+}
+
+func (x *GossipInfo) GetIp() string {
+	if x != nil {
+		return x.Ip
+	}
+	return ""
+}
+
+func (x *GossipInfo) GetPort() uint32 {
+	if x != nil {
+		return x.Port
+	}
+	return 0
+}
+
+func (x *GossipInfo) GetSenderIp() string {
+	if x != nil {
+		return x.SenderIp
+	}
+	return ""
+}
+
+func (x *GossipInfo) GetSenderPort() uint32 {
+	if x != nil {
+		return x.SenderPort
+	}
+	return 0
+}
+
 var File_grpc_consensus_proto protoreflect.FileDescriptor
 
 const file_grpc_consensus_proto_rawDesc = "" +
@@ -172,10 +248,20 @@ const file_grpc_consensus_proto_rawDesc = "" +
 	"\aRequest\x12\x18\n" +
 	"\alamport\x18\x01 \x01(\rR\alamport\x12\x0e\n" +
 	"\x02ip\x18\x02 \x01(\tR\x02ip\x12\x12\n" +
-	"\x04port\x18\x03 \x01(\rR\x04port2k\n" +
+	"\x04port\x18\x03 \x01(\rR\x04port\"\x86\x01\n" +
+	"\n" +
+	"GossipInfo\x12\x18\n" +
+	"\alamport\x18\x01 \x01(\rR\alamport\x12\x0e\n" +
+	"\x02ip\x18\x02 \x01(\tR\x02ip\x12\x12\n" +
+	"\x04port\x18\x03 \x01(\rR\x04port\x12\x1a\n" +
+	"\bsenderIp\x18\x04 \x01(\tR\bsenderIp\x12\x1e\n" +
+	"\n" +
+	"senderPort\x18\x05 \x01(\rR\n" +
+	"senderPort2\x96\x01\n" +
 	"\x10ConsensusService\x12(\n" +
 	"\rAcceptRequest\x12\b.grpc.Ok\x1a\r.grpc.Nothing\x12-\n" +
-	"\rRequestAccess\x12\r.grpc.Request\x1a\r.grpc.NothingB\x13Z\x11consensus-go/grpcb\x06proto3"
+	"\rRequestAccess\x12\r.grpc.Request\x1a\r.grpc.Nothing\x12)\n" +
+	"\x06Gossip\x12\x10.grpc.GossipInfo\x1a\r.grpc.NothingB\x13Z\x11consensus-go/grpcb\x06proto3"
 
 var (
 	file_grpc_consensus_proto_rawDescOnce sync.Once
@@ -189,19 +275,22 @@ func file_grpc_consensus_proto_rawDescGZIP() []byte {
 	return file_grpc_consensus_proto_rawDescData
 }
 
-var file_grpc_consensus_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_grpc_consensus_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_grpc_consensus_proto_goTypes = []any{
-	(*Nothing)(nil), // 0: grpc.Nothing
-	(*Ok)(nil),      // 1: grpc.Ok
-	(*Request)(nil), // 2: grpc.Request
+	(*Nothing)(nil),    // 0: grpc.Nothing
+	(*Ok)(nil),         // 1: grpc.Ok
+	(*Request)(nil),    // 2: grpc.Request
+	(*GossipInfo)(nil), // 3: grpc.GossipInfo
 }
 var file_grpc_consensus_proto_depIdxs = []int32{
 	1, // 0: grpc.ConsensusService.AcceptRequest:input_type -> grpc.Ok
 	2, // 1: grpc.ConsensusService.RequestAccess:input_type -> grpc.Request
-	0, // 2: grpc.ConsensusService.AcceptRequest:output_type -> grpc.Nothing
-	0, // 3: grpc.ConsensusService.RequestAccess:output_type -> grpc.Nothing
-	2, // [2:4] is the sub-list for method output_type
-	0, // [0:2] is the sub-list for method input_type
+	3, // 2: grpc.ConsensusService.Gossip:input_type -> grpc.GossipInfo
+	0, // 3: grpc.ConsensusService.AcceptRequest:output_type -> grpc.Nothing
+	0, // 4: grpc.ConsensusService.RequestAccess:output_type -> grpc.Nothing
+	0, // 5: grpc.ConsensusService.Gossip:output_type -> grpc.Nothing
+	3, // [3:6] is the sub-list for method output_type
+	0, // [0:3] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -218,7 +307,7 @@ func file_grpc_consensus_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_grpc_consensus_proto_rawDesc), len(file_grpc_consensus_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -16,9 +16,19 @@ message Request {
   uint32 port = 3;
 }
 
+message GossipInfo {
+  uint32 lamport = 1;
+  string ip = 2;
+  uint32 port = 3;
+
+  string senderIp = 4;
+  uint32 senderPort = 5;
+}
+
 service ConsensusService {
   rpc AcceptRequest(Ok) returns (Nothing);
   rpc RequestAccess(Request) returns (Nothing);
+  rpc Gossip(GossipInfo) returns (Nothing);
 }
 
 //message DiscoveryServiceEvent {

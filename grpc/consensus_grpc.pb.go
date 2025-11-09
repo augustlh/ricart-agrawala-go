@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	ConsensusService_AcceptRequest_FullMethodName = "/grpc.ConsensusService/AcceptRequest"
 	ConsensusService_RequestAccess_FullMethodName = "/grpc.ConsensusService/RequestAccess"
+	ConsensusService_Gossip_FullMethodName        = "/grpc.ConsensusService/Gossip"
 )
 
 // ConsensusServiceClient is the client API for ConsensusService service.
@@ -29,6 +30,7 @@ const (
 type ConsensusServiceClient interface {
 	AcceptRequest(ctx context.Context, in *Ok, opts ...grpc.CallOption) (*Nothing, error)
 	RequestAccess(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Nothing, error)
+	Gossip(ctx context.Context, in *GossipInfo, opts ...grpc.CallOption) (*Nothing, error)
 }
 
 type consensusServiceClient struct {
@@ -59,12 +61,23 @@ func (c *consensusServiceClient) RequestAccess(ctx context.Context, in *Request,
 	return out, nil
 }
 
+func (c *consensusServiceClient) Gossip(ctx context.Context, in *GossipInfo, opts ...grpc.CallOption) (*Nothing, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Nothing)
+	err := c.cc.Invoke(ctx, ConsensusService_Gossip_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ConsensusServiceServer is the server API for ConsensusService service.
 // All implementations must embed UnimplementedConsensusServiceServer
 // for forward compatibility.
 type ConsensusServiceServer interface {
 	AcceptRequest(context.Context, *Ok) (*Nothing, error)
 	RequestAccess(context.Context, *Request) (*Nothing, error)
+	Gossip(context.Context, *GossipInfo) (*Nothing, error)
 	mustEmbedUnimplementedConsensusServiceServer()
 }
 
@@ -80,6 +93,9 @@ func (UnimplementedConsensusServiceServer) AcceptRequest(context.Context, *Ok) (
 }
 func (UnimplementedConsensusServiceServer) RequestAccess(context.Context, *Request) (*Nothing, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RequestAccess not implemented")
+}
+func (UnimplementedConsensusServiceServer) Gossip(context.Context, *GossipInfo) (*Nothing, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Gossip not implemented")
 }
 func (UnimplementedConsensusServiceServer) mustEmbedUnimplementedConsensusServiceServer() {}
 func (UnimplementedConsensusServiceServer) testEmbeddedByValue()                          {}
@@ -138,6 +154,24 @@ func _ConsensusService_RequestAccess_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ConsensusService_Gossip_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GossipInfo)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConsensusServiceServer).Gossip(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ConsensusService_Gossip_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConsensusServiceServer).Gossip(ctx, req.(*GossipInfo))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ConsensusService_ServiceDesc is the grpc.ServiceDesc for ConsensusService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -152,6 +186,10 @@ var ConsensusService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RequestAccess",
 			Handler:    _ConsensusService_RequestAccess_Handler,
+		},
+		{
+			MethodName: "Gossip",
+			Handler:    _ConsensusService_Gossip_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

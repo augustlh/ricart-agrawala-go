@@ -10,8 +10,10 @@ import (
 	"log"
 	"time"
 	"os"
+	"strconv"
 	"net"
 	"math/rand"
+	"sync/atomic"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -43,10 +45,11 @@ type Node struct {
 	requestTimeStamp uint32
 
 	nodeInfo NodeInfo
-	knownNodes []NodeConnection
+	knownNodes map[NodeInfo]proto.ConsensusServiceClient
 	queue queue.AtomicQueue[NodeInfo]
 
-	accept chan bool
+	gossipOrigin atomic.Uint32
+	accepted atomic.Uint32
 }
 
 func NewNode(nodeInfo NodeInfo, knownNodes []NodeInfo) *Node {
@@ -55,22 +58,16 @@ func NewNode(nodeInfo NodeInfo, knownNodes []NodeInfo) *Node {
 	node.state = StateReleased;
 	node.clock = clock.NewClock();
 	node.nodeInfo = nodeInfo;
-	node.accept = make(chan bool, 4);
 
-	node.knownNodes = make([]NodeConnection, len(knownNodes));
-	for i, n := range knownNodes {
+	if len(knownNodes) > 0 {
+		fmt.Printf("%v\n", knownNodes[0]);
+	}
 
-		conn, err := grpc.NewClient(
-			fmt.Sprintf("%s:%d", n.ip, n.port),
-			grpc.WithTransportCredentials(insecure.NewCredentials()));
-
-		if err != nil {
-			println("Error connecting");
+	node.knownNodes = make(map[NodeInfo]proto.ConsensusServiceClient);
+	for _, n := range knownNodes {
+		if !node.addNode(n) {
+			node.Log("Failed to add: (%s:%d)", n.ip, n.port);
 		}
-
-		client := proto.NewConsensusServiceClient(conn);
-
-		node.knownNodes[i] = NodeConnection {nodeInfo: n, connection: client};
 	}
 
 	grpcServer := grpc.NewServer()
@@ -80,11 +77,22 @@ func NewNode(nodeInfo NodeInfo, knownNodes []NodeInfo) *Node {
 	tcpConnection, err := net.Listen("tcp", connectionAddr);
 
 	if err != nil {
-		panic("Failed to bind ")
+		panic(fmt.Sprintf("Server failed to bind to port: %d", nodeInfo.port));
 	}
 
-	go nodeLoop(node);
-	grpcServer.Serve(tcpConnection);
+	go grpcServer.Serve(tcpConnection);
+
+	for info, client := range node.knownNodes {
+		node.Log("Gossiping to: (%s:%d) about self", info.ip, info.port);
+		client.Gossip(context.Background(), &proto.GossipInfo { 
+			Lamport: node.clock.CurrentTime(),
+			Ip: node.nodeInfo.ip,
+			Port: uint32(node.nodeInfo.port),
+
+			SenderIp: node.nodeInfo.ip,
+			SenderPort: uint32(node.nodeInfo.port),
+		});
+	}
 
 	return node;
 }
@@ -93,42 +101,95 @@ func (node *Node) Log(format string, v ...any) {
 	log.Printf("%s:%d: %s\n", node.nodeInfo.ip, node.nodeInfo.port, fmt.Sprintf(format, v...));
 }
 
+func (node *Node) addNode(nodeInfo NodeInfo) bool {
+	conn, err := grpc.NewClient(
+		fmt.Sprintf("%s:%d", nodeInfo.ip, nodeInfo.port),
+		grpc.WithTransportCredentials(insecure.NewCredentials()));
+
+	if err != nil {
+		node.Log("Error connecting to known node (%s:%d)", nodeInfo.ip, nodeInfo.port);
+		return false;
+	}
+
+	client := proto.NewConsensusServiceClient(conn);
+
+	node.knownNodes[nodeInfo] = client;
+	return true;
+}
+
+func (node *Node) Gossip(ctx context.Context, req *proto.GossipInfo) (*proto.Nothing, error) {
+	node.Log("Heard some gossip about a new node called (%s:%d)", req.Ip, req.Port);
+
+	if req.Ip == node.nodeInfo.ip && req.Port == uint32(node.nodeInfo.port) {
+		node.Log("That gossip is about me, I'll just ignore it");
+		return &proto.Nothing{}, nil
+	}
+
+	node.clock.MergeWithRawTimestamp(req.Lamport);
+	newNodeInfo := NodeInfo {ip: req.Ip, port: uint16(req.Port)};
+
+	_, alreadyKnow := node.knownNodes[newNodeInfo];
+
+	if alreadyKnow {
+		node.Log("I actually already know about (%s:%d)", req.Ip, req.Port);
+		return &proto.Nothing{}, nil
+	} else if !node.addNode(newNodeInfo) {
+		node.Log("Could not connect to the new node (%s:%d)", req.Ip, req.Port);
+		return &proto.Nothing{}, nil
+	}
+
+	client, _ := node.knownNodes[newNodeInfo];
+
+	for otherNodeInfo, otherNodeClient := range node.knownNodes {
+
+		if otherNodeInfo.ip == req.SenderIp && otherNodeInfo.port == uint16(req.SenderPort) {
+			continue;
+		}
+
+		otherNodeClient.Gossip(context.Background(), &proto.GossipInfo{
+			Lamport: node.clock.CurrentTime(),
+			Ip: req.Ip,
+			Port: req.Port,
+			SenderIp: node.nodeInfo.ip,
+			SenderPort: uint32(node.nodeInfo.port),
+		});
+
+	}
+
+	client.Gossip(context.Background(), &proto.GossipInfo{
+		Lamport: node.clock.CurrentTime(),
+		Ip: node.nodeInfo.ip,
+		Port: uint32(node.nodeInfo.port),
+		SenderIp: node.nodeInfo.ip,
+		SenderPort: uint32(node.nodeInfo.port),
+	});
+
+	return &proto.Nothing{}, nil
+}
+
 func (node *Node) AcceptRequest(ctx context.Context, req *proto.Ok) (*proto.Nothing, error) {
 	node.Log("My request was accepted by a node");
 
 //	node.clock.Advance();
 	node.clock.MergeWithRawTimestamp(req.Lamport);
-	node.accept <- true
+	node.accepted.Add(1);
 
 	return &proto.Nothing{}, nil
-}
-
-func (node *Node) findNode(nodeInfo NodeInfo) (int) {
-
-	// TODO - use map or something else for known nodes
-	for i, n := range node.knownNodes {
-		if n.nodeInfo.port == nodeInfo.port && n.nodeInfo.ip == nodeInfo.ip {
-			return i;
-		}
-	}
-
-	return -1;
 }
 
 func (node *Node) RequestAccess(ctx context.Context, req *proto.Request) (*proto.Nothing, error) {
 	node.clock.Advance()
 
-	nodeIndex := node.findNode(NodeInfo{ ip: req.Ip, port: uint16(req.Port) })
-	if(nodeIndex < 0) {
-		node.Log("Got request from unknown node: (%s:%d)", req.Ip, req.Port);
-	}
-	clientNode := node.knownNodes[nodeIndex];
 	ip := req.Ip;
 	port := uint16(req.Port);
+	client, foundNode := node.knownNodes[NodeInfo {ip: ip, port: port}];
+
+	if(!foundNode) {
+		node.Log("Got request from unknown node: (%s:%d)", req.Ip, req.Port);
+		return &proto.Nothing{}, nil;
+	}
 
 	node.Log("Node (%s:%d) is asking for my permission to access the critical section", ip, port);
-
-	client := clientNode.connection;
 
 	switch node.state {
 	case StateReleased:
@@ -162,6 +223,8 @@ func (node *Node) RequestAccess(ctx context.Context, req *proto.Request) (*proto
 
 func (node *Node) Enter() {
 	n := len(node.knownNodes);
+	node.accepted.Store(0);
+
 	node.Log("I'd like to access the critical section, let me ask the other %d nodes first", n);
 	node.state = StateWanted;
 
@@ -174,25 +237,19 @@ func (node *Node) Enter() {
 		Port: uint32(node.nodeInfo.port),
 	};
 
-	for _, clientNode := range node.knownNodes {
-		client := clientNode.connection;
+	for nodeInfo, client := range node.knownNodes {
 
-		node.Log("Sending request access to: (%s:%d)", clientNode.nodeInfo.ip, clientNode.nodeInfo.port);
-//		ctx, _ := context.WithDeadline(context.Background(), time.Now().Add(time.Second*3));
+		node.Log("Sending request access to: (%s:%d)", nodeInfo.ip, nodeInfo.port);
 		client.RequestAccess(context.Background(), &requestPacket);
 	}
 
 	node.Log("All requests have been sent, I'll now wait for %d replies", n);
-	for n > 0 {
-		node.Log("Waiting for %d replies from the other nodes", n);
-		accepted := <-node.accept
-		if accepted { n -= 1 }
-
+	for node.accepted.Load() < uint32(len(node.knownNodes)) {
+		// Wait for all other nodes to accept the request
 	}
 
 	node.state = StateHeld;
 	node.Log("I now hold access to the critical section");
-
 }
 
 func (node *Node) Exit() {
@@ -201,29 +258,18 @@ func (node *Node) Exit() {
 
 	for node.queue.Size() > 0 {
 		rep := node.queue.Pop();
-
-		conn, err := grpc.NewClient(
-			fmt.Sprintf("%s:%d", rep.ip, rep.port),
-			grpc.WithTransportCredentials(insecure.NewCredentials()));
-
-		node.Log("Telling (%s:%d) that I'm all done and that they can access the critical section", rep.ip, rep.port);
-
-		if err != nil {
-			node.Log("Could not contact (%s:%d)", rep.ip, rep.port);
+		client, found := node.knownNodes[rep];
+		if !found {
+			node.Log("Unknown node requested access: (%s:%d)", rep.ip, rep.port);
 			continue;
 		}
-
-		client := proto.NewConsensusServiceClient(conn);
-
 		client.AcceptRequest(context.Background(), &proto.Ok{});
-
-		conn.Close();
 	}
 }
 
 func nodeLoop(node *Node) {
 	for {
-		idleTime := (rand.Uint64() % 60) + 1;
+		idleTime := (rand.Uint64() % 20) + 1;
 		node.Log("Working on non-critical section for %d seconds", idleTime)
 		time.Sleep(time.Duration(idleTime) * time.Second);
 
@@ -234,48 +280,28 @@ func nodeLoop(node *Node) {
 		time.Sleep(time.Duration(idleTime) * time.Second);
 
 		node.Exit();
-
 	}
-
 }
 
 func main() {
-	if len(os.Args) < 2 {
-		println("Missing node arg: 'a', 'b' or 'c'");
+	if len(os.Args) < 3 {
+		println("Missing args: 'ip' 'port' 'otherIp?' 'otherPort?'");
 		return;
 	}
 
-	println("Waiting 5s before startup");
-	time.Sleep( 5*time.Second );
 	println("Server starting");
 
+	portNumber, _ := strconv.ParseUint(os.Args[2], 10, 16);
+
 	var node *Node;
-	switch os.Args[1][0] {
-	case 'a':
-
-	knownNodes := []NodeInfo{
-		NodeInfo {ip: "localhost", port: 5000},
-		NodeInfo {ip: "localhost", port: 5001},
-	};
-
-	node = NewNode(NodeInfo {ip: "localhost", port: 5002}, knownNodes);
-	case 'b':
-	knownNodes := []NodeInfo{
-		NodeInfo {ip: "localhost", port: 5001},
-		NodeInfo {ip: "localhost", port: 5002},
-	};
-
-	node = NewNode(NodeInfo {ip: "localhost", port: 5000}, knownNodes);
-	case 'c':
-	knownNodes := []NodeInfo{
-		NodeInfo {ip: "localhost", port: 5000},
-		NodeInfo {ip: "localhost", port: 5002},
-	};
-
-	node = NewNode(NodeInfo {ip: "localhost", port: 5001}, knownNodes);
+	if len(os.Args) == 3 {
+		node = NewNode( NodeInfo{ ip: os.Args[1], port: uint16(portNumber) }, []NodeInfo{} );
+	} else {
+		otherPort, _ := strconv.ParseUint(os.Args[4], 10, 16);
+		node = NewNode( NodeInfo{ ip: os.Args[1], port: uint16(portNumber) }, []NodeInfo{  {ip: os.Args[3], port: uint16(otherPort)} } );
 	}
 
-	println(node.state);
-}
 
+	nodeLoop(node);
+}
 
