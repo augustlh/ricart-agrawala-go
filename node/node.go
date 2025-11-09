@@ -35,6 +35,7 @@ type Node struct {
 
 	state NodeState
 	clock clock.AtomicLamportClock
+	requestTimeStamp uint32
 
 	nodeInfo NodeInfo
 	knownNodes []NodeInfo
@@ -76,7 +77,7 @@ func (node *Node) Log(format string, v ...any) {
 func (node *Node) AcceptRequest(ctx context.Context, req *proto.Ok) (*proto.Nothing, error) {
 	node.Log("My request was accepted by a node");
 
-	node.clock.Advance();
+//	node.clock.Advance();
 	node.clock.MergeWithRawTimestamp(req.Lamport);
 	node.accept <- true
 
@@ -110,7 +111,7 @@ func (node *Node) RequestAccess(ctx context.Context, req *proto.Request) (*proto
 		);
 
 	case StateWanted:
-		if req.Lamport < node.clock.CurrentTime() {
+		if req.Lamport <= node.requestTimeStamp {
 			node.Log("They asked for access before me, so I'll accept their request");
 			client.AcceptRequest(
 				context.Background(), 
@@ -122,7 +123,7 @@ func (node *Node) RequestAccess(ctx context.Context, req *proto.Request) (*proto
 		}
 
 	case StateHeld:
-			node.Log("I currently hold access to the critical section, so I'll just push their request ot the queue");
+			node.Log("I currently hold access to the critical section, so I'll just push their request to the queue");
 			node.queue.Push( NodeInfo { ip: ip, port: port } );
 	}
 
@@ -139,6 +140,7 @@ func (node *Node) Enter() {
 	node.state = StateWanted;
 
 	node.clock.Advance();
+	node.requestTimeStamp = node.clock.CurrentTime();
 
 	requestPacket := proto.Request{
 		Lamport: node.clock.CurrentTime(),
@@ -176,15 +178,15 @@ func (node *Node) Enter() {
 
 	}
 
+	node.state = StateHeld;
 	node.Log("I now hold access to the critical section");
 
-	node.state = StateHeld;
 }
 
 func (node *Node) Exit() {
+	node.state = StateReleased;
 	node.Log("I no longer want access to the critical section");
 
-	node.state = StateReleased;
 	for node.queue.Size() > 0 {
 		rep := node.queue.Pop();
 
@@ -210,13 +212,13 @@ func (node *Node) Exit() {
 func nodeLoop(node *Node) {
 	for {
 		idleTime := (rand.Uint64() % 60) + 1;
-		node.Log("Working on non-critical section for %d", idleTime)
+		node.Log("Working on non-critical section for %d seconds", idleTime)
 		time.Sleep(time.Duration(idleTime) * time.Second);
 
 		node.Enter();
 
 		idleTime = (rand.Uint64() % 20) + 1;
-		node.Log("Working on critical section for %d", idleTime)
+		node.Log("Working on critical section for %d seconds", idleTime)
 		time.Sleep(time.Duration(idleTime) * time.Second);
 
 		node.Exit();
@@ -255,7 +257,7 @@ func main() {
 	case 'c':
 	knownNodes := []NodeInfo{
 		NodeInfo {ip: "localhost", port: 5000},
-		NodeInfo {ip: "localhost", port: 5001},
+		NodeInfo {ip: "localhost", port: 5002},
 	};
 
 	node = NewNode(NodeInfo {ip: "localhost", port: 5001}, knownNodes);
