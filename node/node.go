@@ -30,6 +30,11 @@ type NodeInfo struct {
 	port uint16
 }
 
+type NodeConnection struct {
+	nodeInfo NodeInfo
+	connection proto.ConsensusServiceClient
+}
+
 type Node struct {
 	proto.UnimplementedConsensusServiceServer
 
@@ -38,7 +43,7 @@ type Node struct {
 	requestTimeStamp uint32
 
 	nodeInfo NodeInfo
-	knownNodes []NodeInfo
+	knownNodes []NodeConnection
 	queue queue.AtomicQueue[NodeInfo]
 
 	accept chan bool
@@ -50,9 +55,23 @@ func NewNode(nodeInfo NodeInfo, knownNodes []NodeInfo) *Node {
 	node.state = StateReleased;
 	node.clock = clock.NewClock();
 	node.nodeInfo = nodeInfo;
-	node.accept = make(chan bool, 1);
+	node.accept = make(chan bool, 4);
 
-	node.knownNodes = knownNodes;
+	node.knownNodes = make([]NodeConnection, len(knownNodes));
+	for i, n := range knownNodes {
+
+		conn, err := grpc.NewClient(
+			fmt.Sprintf("%s:%d", n.ip, n.port),
+			grpc.WithTransportCredentials(insecure.NewCredentials()));
+
+		if err != nil {
+			println("Error connecting");
+		}
+
+		client := proto.NewConsensusServiceClient(conn);
+
+		node.knownNodes[i] = NodeConnection {nodeInfo: n, connection: client};
+	}
 
 	grpcServer := grpc.NewServer()
 	proto.RegisterConsensusServiceServer(grpcServer, node);
@@ -84,23 +103,32 @@ func (node *Node) AcceptRequest(ctx context.Context, req *proto.Ok) (*proto.Noth
 	return &proto.Nothing{}, nil
 }
 
+func (node *Node) findNode(nodeInfo NodeInfo) (int) {
+
+	// TODO - use map or something else for known nodes
+	for i, n := range node.knownNodes {
+		if n.nodeInfo.port == nodeInfo.port && n.nodeInfo.ip == nodeInfo.ip {
+			return i;
+		}
+	}
+
+	return -1;
+}
+
 func (node *Node) RequestAccess(ctx context.Context, req *proto.Request) (*proto.Nothing, error) {
 	node.clock.Advance()
 
+	nodeIndex := node.findNode(NodeInfo{ ip: req.Ip, port: uint16(req.Port) })
+	if(nodeIndex < 0) {
+		node.Log("Got request from unknown node: (%s:%d)", req.Ip, req.Port);
+	}
+	clientNode := node.knownNodes[nodeIndex];
 	ip := req.Ip;
 	port := uint16(req.Port);
 
 	node.Log("Node (%s:%d) is asking for my permission to access the critical section", ip, port);
 
-	conn, err := grpc.NewClient(
-		fmt.Sprintf("%s:%d", ip, port),
-		grpc.WithTransportCredentials(insecure.NewCredentials()));
-
-	if err != nil {
-		println("err");
-	}
-
-	client := proto.NewConsensusServiceClient(conn);
+	client := clientNode.connection;
 
 	switch node.state {
 	case StateReleased:
@@ -129,8 +157,6 @@ func (node *Node) RequestAccess(ctx context.Context, req *proto.Request) (*proto
 
 	node.clock.MergeWithRawTimestamp(req.Lamport);
 
-	conn.Close();
-
 	return &proto.Nothing{}, nil
 }
 
@@ -148,26 +174,12 @@ func (node *Node) Enter() {
 		Port: uint32(node.nodeInfo.port),
 	};
 
-	for i := range n {
-		nodeInfo := node.knownNodes[i];
-		conn, err := grpc.NewClient(
-			fmt.Sprintf("%s:%d", nodeInfo.ip, nodeInfo.port),
-			grpc.WithTransportCredentials(insecure.NewCredentials()));
+	for _, clientNode := range node.knownNodes {
+		client := clientNode.connection;
 
-		if err != nil {
-			node.Log("Could not ask node: (%s:%d)", nodeInfo.ip, nodeInfo.port);
-			n -= 1
-			continue;
-		}
-
-		client := proto.NewConsensusServiceClient(conn);
-
-		node.Log("Sending request access to: (%s:%d)", nodeInfo.ip, nodeInfo.port);
-		ctx, _ := context.WithDeadline(context.Background(), time.Now().Add(time.Second*3));
-		client.RequestAccess(ctx, &requestPacket);
-
-		conn.Close();
-
+		node.Log("Sending request access to: (%s:%d)", clientNode.nodeInfo.ip, clientNode.nodeInfo.port);
+//		ctx, _ := context.WithDeadline(context.Background(), time.Now().Add(time.Second*3));
+		client.RequestAccess(context.Background(), &requestPacket);
 	}
 
 	node.Log("All requests have been sent, I'll now wait for %d replies", n);
