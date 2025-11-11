@@ -249,7 +249,9 @@ func (node *Node) Enter() {
 	}
 
 	node.Log("All requests have been sent, I'll now wait for %d replies", n);
-	for node.accepted.Load() < uint32(len(node.knownNodes)) {
+
+	//for node.accepted.Load() < uint32(len(node.knownNodes)) {
+	for node.accepted.Load() < uint32(n) {
 		// Wait for all other nodes to accept the request
 	}
 
@@ -268,7 +270,9 @@ func (node *Node) Exit() {
 			node.Log("Unknown node requested access: (%s:%d)", rep.ip, rep.port);
 			continue;
 		}
-		client.AcceptRequest(context.Background(), &proto.Ok{});
+
+		node.Log("I'm telling (%s:%d) that I'm done", rep.ip, rep.port);
+		client.AcceptRequest(context.Background(), &proto.Ok{ Lamport: node.clock.CurrentTime() });
 	}
 }
 
@@ -297,6 +301,9 @@ func main() {
 	println("Server starting");
 
 	portNumber, _ := strconv.ParseUint(os.Args[2], 10, 16);
+
+//	f, _ := os.OpenFile(fmt.Sprintf("log_%s.txt", os.Args[2]), os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+//	log.SetOutput(f);
 
 	var node *Node;
 	if len(os.Args) == 3 {
