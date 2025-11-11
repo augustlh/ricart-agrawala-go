@@ -191,10 +191,11 @@ func (node *Node) RequestAccess(ctx context.Context, req *proto.Request) (*proto
 
 	node.Log("Node (%s:%d) is asking for my permission to access the critical section", ip, port);
 
+	var err error;
 	switch node.state {
 	case StateReleased:
 		node.Log("Don't need access myself, so I'll just accept the request immediately");
-		client.AcceptRequest(
+		_, err = client.AcceptRequest(
 			ctx, 
 			&proto.Ok{},
 		);
@@ -202,7 +203,7 @@ func (node *Node) RequestAccess(ctx context.Context, req *proto.Request) (*proto
 	case StateWanted:
 		if req.Lamport <= node.requestTimeStamp {
 			node.Log("They asked for access before me, so I'll accept their request");
-			client.AcceptRequest(
+			_, err = client.AcceptRequest(
 				context.Background(), 
 				&proto.Ok{},
 			);
@@ -217,6 +218,10 @@ func (node *Node) RequestAccess(ctx context.Context, req *proto.Request) (*proto
 	}
 
 	node.clock.MergeWithRawTimestamp(req.Lamport);
+
+	if err != nil {
+		node.Log("I think (%s:%d) died")
+	}
 
 	return &proto.Nothing{}, nil
 }
