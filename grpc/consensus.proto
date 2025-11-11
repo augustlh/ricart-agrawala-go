@@ -30,31 +30,3 @@ service ConsensusService {
   rpc RequestAccess(Request) returns (Nothing);
   rpc Gossip(GossipInfo) returns (Nothing);
 }
-
-//message DiscoveryServiceEvent {
-//  uint64 timestamp = 1;
-//
-//  oneof event {
-//    Accepted accepted_event = 2;
-//    Heartbeat heartbeat_event = 3;
-//  }
-//
-//  message Accepted {
-//    uint32 id = 1;
-//  }
-//
-//  message Heartbeat {}
-//
-//  message NewNodeJoined {
-//    NodeInfo nodeinfo = 1;
-//  }
-//}
-//
-//service DiscoveryService {
-//  rpc Join( NodeInfo ) returns (stream DiscoveryServiceEvent);
-//  rpc Disconnect( NodeInfo ) returns ( Nothing );
-//
-//  rpc HowManyNodes() returns ( uint32 );
-//}
-//
-
