@@ -16,14 +16,15 @@ func main() {
 		panic(err)
 	}
 
-	A := NewNode(1, ":50051", nil)
-	B := NewNode(2, ":50052", nil)
-
-	if err := A.Start(); err != nil {
-		panic(err)
+	nodes := []*Node{
+		NewNode(1, ":50051", nil),
+		NewNode(2, ":50052", nil),
+		NewNode(3, ":50053", nil),
 	}
-	if err := B.Start(); err != nil {
-		panic(err)
+	for _, n := range nodes {
+		if err := n.Start(); err != nil {
+			panic(err)
+		}
 	}
 
 	ctx := context.Background()
@@ -40,31 +41,28 @@ func main() {
 			if err != nil {
 				log.Printf("discover: %v", err)
 			}
-			A.SetPeers(peers)
-			B.SetPeers(peers)
+			for _, n := range nodes {
+				n.SetPeers(peers)
+			}
 			time.Sleep(300 * time.Millisecond)
 		}
 	}()
 
-	time.Sleep(500 * time.Millisecond)
-
-	A.RequestCS(ctx)
-	time.Sleep(50 * time.Millisecond)
-	B.RequestCS(ctx)
-
-	for !A.CanEnter() {
-		time.Sleep(10 * time.Millisecond)
+	for i, n := range nodes {
+		go func(id int, node *Node) {
+			time.Sleep(time.Duration(id*50) * time.Millisecond) // staggered start
+			node.RequestCS(ctx)
+		}(i, n)
 	}
-	log.Println("[A] enter CS")
-	time.Sleep(200 * time.Millisecond)
-	A.ReleaseCS(ctx)
-	log.Println("[A] exit CS")
 
-	for !B.CanEnter() {
-		time.Sleep(10 * time.Millisecond)
+	for _, n := range nodes {
+		for !n.CanEnter() {
+			time.Sleep(10 * time.Millisecond)
+		}
+		log.Printf("[Node %d] enter CS", n.id)
+		time.Sleep(200 * time.Millisecond)
+		n.ReleaseCS(ctx)
+		log.Printf("[Node %d] exit CS", n.id)
 	}
-	log.Println("[B] enter CS")
-	time.Sleep(200 * time.Millisecond)
-	B.ReleaseCS(ctx)
-	log.Println("[B] exit CS")
+
 }
