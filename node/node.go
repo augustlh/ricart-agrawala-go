@@ -201,7 +201,10 @@ func (node *Node) RequestAccess(ctx context.Context, req *proto.Request) (*proto
 		);
 
 	case StateWanted:
-		if req.Lamport <= node.requestTimeStamp {
+		if req.Lamport < node.requestTimeStamp || 
+		(req.Lamport == node.requestTimeStamp &&
+		fmt.Sprintf("%s:%d", req.Ip, req.Port) < fmt.Sprintf("%s:%d", node.nodeInfo.ip, node.nodeInfo.port)) {
+
 			node.Log("They asked for access before me, so I'll accept their request");
 			_, err = client.AcceptRequest(
 				context.Background(), 
@@ -247,6 +250,8 @@ func (node *Node) Enter() {
 		node.Log("Sending request access to: (%s:%d)", nodeInfo.ip, nodeInfo.port);
 		client.RequestAccess(context.Background(), &requestPacket);
 	}
+
+	// CONNECTION HAPPENS HERE
 
 	node.Log("All requests have been sent, I'll now wait for %d replies", n);
 
