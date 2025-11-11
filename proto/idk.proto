@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "github.com/augustlh/ricart-agrawala-go/proto";
+
+service RicartAgrawalaService {
+  rpc Stream(stream Message) returns (stream Message);
+}
+
+message Message {
+  oneof payload {
+    Request request = 1;
+    Reply reply = 2;
+  }
+}
+
+message Request {
+  string id = 1;
+  uint64 timestamp = 2;
+}
+
+message Reply {
+  string id = 1;
+  uint64 request_timestamp = 2; // Timestamp of the request this is replying to, so the `Node` knows if its an ack to its current req and not an old one
+}

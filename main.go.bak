@@ -1,0 +1,264 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"net"
+	"time"
+
+	pb "github.com/augustlh/ricart-agrawala-go/proto"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	//"google.golang.org/grpc"
+)
+
+type LamportClock struct {
+	ticks uint64
+}
+
+func (lc *LamportClock) Now() uint64 {
+	return lc.ticks
+}
+
+func (lc *LamportClock) Tick() uint64 {
+	lc.ticks += 1
+	return lc.ticks
+}
+
+func (lc *LamportClock) Sync(otherTicks uint64) {
+	lc.ticks = max(lc.ticks, otherTicks) + 1
+}
+
+const N = 10
+
+type State int
+
+const (
+	Released State = iota
+	Held
+	Wanted
+)
+
+type Peer struct {
+	id     string
+	stream grpc.BidiStreamingClient[pb.Message, pb.Message]
+	send   chan *pb.Message
+}
+
+func NewPeer(id string, stream grpc.BidiStreamingClient[pb.Message, pb.Message]) *Peer {
+	p := &Peer{
+		id:     id,
+		stream: stream,
+		send:   make(chan *pb.Message, 10),
+	}
+	go p.listen()
+	return p
+}
+
+func (p *Peer) listen() {
+	for msg := range p.send {
+		if err := p.stream.Send(msg); err != nil {
+			log.Printf("[%s] stream send error: %v", p.id, err)
+			return
+		}
+	}
+}
+
+func (p *Peer) Send(msg *pb.Message) {
+	select {
+	case p.send <- msg:
+	default:
+		log.Printf("[%s] send channel full, dropping message", p.id)
+	}
+}
+
+type Node struct {
+	pb.UnimplementedRicartAgrawalaServiceServer
+	id string
+	ip string
+
+	clock LamportClock
+	state State
+
+	recv  chan *pb.Reply
+	peers map[string]*Peer
+	queue []*pb.Request
+
+	wantedTimestamp uint64 // The timestamp of when the node starting wanting to enter the critical section
+}
+
+func (n *Node) Stream(stream pb.RicartAgrawalaService_StreamServer) error {
+	for {
+		in, err := stream.Recv()
+		if err != nil {
+			return err
+		}
+
+		switch in.Payload.(type) {
+		case *pb.Message_Reply:
+			n.recv <- in.GetReply()
+		case *pb.Message_Request:
+			req := in.GetRequest()
+
+			n.clock.Sync(req.Timestamp)
+
+			// If we have an active wanted, we check if the wantedTimestamp < req.Timestamp, and if it is we queue it since we have prio
+			if n.state == Held || (n.state == Wanted && n.wantedTimestamp < req.Timestamp) {
+				n.queue = append(n.queue, req)
+			} else {
+				n.SendReply(req)
+			}
+		}
+	}
+}
+
+func (n *Node) Multicast(message *pb.Message) {
+	for _, peer := range n.peers {
+		peer.Send(message)
+	}
+}
+
+func (n *Node) Enter() {
+	if n.state != Released {
+		return
+	}
+	n.state = Wanted
+
+	//build request (timestamp, id)
+	n.wantedTimestamp = n.clock.Now()
+	request := pb.Message{
+		Payload: &pb.Message_Request{
+			Request: &pb.Request{
+				Id:        n.id,
+				Timestamp: n.wantedTimestamp,
+			},
+		},
+	}
+
+	//multicast it to all nodes
+	n.Multicast(&request)
+
+	//now we want n-1 responses
+	acks := make(map[string]bool)
+
+	for len(acks) < N-1 {
+		for msg := range n.recv {
+			if msg.RequestTimestamp == n.wantedTimestamp {
+				acks[msg.Id] = true
+			}
+		}
+	}
+
+	n.state = Held
+}
+
+func (n *Node) Exit() {
+	if n.state != Held {
+		return
+	}
+
+	n.state = Released
+	n.recv = make(chan *pb.Reply, N)
+
+	for _, req := range n.queue {
+		n.SendReply(req)
+	}
+}
+
+func (n *Node) SendReply(req *pb.Request) {
+	reply := &pb.Message{
+		Payload: &pb.Message_Reply{
+			Reply: &pb.Reply{
+				Id:               n.id,
+				RequestTimestamp: req.Timestamp,
+			},
+		},
+	}
+	n.peers[req.Id].Send(reply)
+}
+
+type AccessResult int
+
+const (
+	Refused AccessResult = iota
+	Success
+)
+
+// Access simulates a node entering its critical section by printing to `stdout`.
+func (n *Node) Access() AccessResult {
+	// This naturally assumes that their are no byzantine faults
+	// If a system became rogue, it could just lie and say it holds the token even when it doesn't
+	if n.state == Held {
+		fmt.Printf("[%v] accessed the critical section", n.id)
+		return Success
+	}
+
+	return Refused
+
+}
+
+// Initialize the `Server` part of the `Node`
+func (n *Node) Listen() {
+	lis, err := net.Listen("tcp", n.ip)
+	if err != nil {
+		log.Fatalf("[%s] failed to listen: %v", n.id, err)
+		return
+	}
+	var opts []grpc.ServerOption
+	grpcServer := grpc.NewServer(opts...)
+
+	pb.RegisterRicartAgrawalaServiceServer(grpcServer, n)
+	grpcServer.Serve(lis)
+	log.Printf("[%s] now listening at %v", n.id, n.ip)
+}
+
+// Connect the `Node` to a list of servers
+func (n *Node) Connect(nodes map[string]string) {
+	var opts []grpc.DialOption
+	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+
+	for id, ip := range nodes {
+		conn, err := grpc.NewClient(ip, opts...)
+		if err != nil {
+			log.Fatalf("fail to dial: %v", err)
+		}
+		defer conn.Close()
+
+		client := pb.NewRicartAgrawalaServiceClient(conn)
+
+		stream, err := client.Stream(context.Background())
+		if err != nil {
+			log.Fatalf("failed to create stream with server: %v", err)
+		}
+
+		p := NewPeer(id, stream)
+		n.peers[id] = p
+	}
+}
+
+func NewNode(id string, ip string) *Node {
+	return &Node{
+		id:              id,
+		ip:              ip,
+		clock:           LamportClock{ticks: 0},
+		state:           Released,
+		recv:            make(chan *pb.Reply, 10),
+		peers:           make(map[string]*Peer),
+		queue:           []*pb.Request{},
+		wantedTimestamp: 0,
+	}
+}
+
+// Makes the `Node` act
+// It tries to access the critical section, the acts 0..n many times for n <= 10 and releases the lock which repeats
+func (n *Node) Act() {
+	for {
+		n.Enter()
+		n.Act()
+		n.Exit()
+
+		// Small delay
+		time.Sleep(1 * time.Second)
+	}
+}
