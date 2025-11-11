@@ -23,3 +23,6 @@ go run node/node.go localhost 5002 localhost 5001
 
 ## Contributors
 The application is developed in cooperation between `augustlh`, `RockRottenSalad` and `KumaSC`
+
+## License
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
