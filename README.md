@@ -1,12 +1,13 @@
+# Ricart-Agrawala-Go
 The application implements a peer-to-peer node using the Ricart-Agrawala algorithm for distributed mutual exclusion. Nodes can either start a new network or connect to an existing network and communi
 
-# Running the Program
+## Running the Program
 To run the program use the command:
 `go run node/node.go ip port [existing_node_ip existing_node_port]`
 
 Where `ip` and `port` is the ip and port of the node that is being created, and the optional `existing_node_ip` and `existing_node_port` is the ip and port of a node already integrated into the network.
 
-## Example
+### Example
 1. Start the first node
 `go run node/node.go localhost 5000`
 This node will initialize the network and exist on `localhost` with port `5000`.
