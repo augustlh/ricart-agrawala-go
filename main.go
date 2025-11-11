@@ -48,21 +48,17 @@ func main() {
 		}
 	}()
 
-	for i, n := range nodes {
-		go func(id int, node *Node) {
-			time.Sleep(time.Duration(id*50) * time.Millisecond) // staggered start
-			node.RequestCS(ctx)
-		}(i, n)
-	}
-
 	for _, n := range nodes {
-		for !n.CanEnter() {
-			time.Sleep(10 * time.Millisecond)
-		}
-		log.Printf("[Node %d] enter CS", n.id)
-		time.Sleep(200 * time.Millisecond)
-		n.ReleaseCS(ctx)
-		log.Printf("[Node %d] exit CS", n.id)
+		go func(node *Node) {
+			node.RequestCS(ctx)
+			for !node.CanEnter() {
+				time.Sleep(10 * time.Millisecond)
+			}
+			log.Printf("[Node %d] enter CS", node.id)
+			time.Sleep(200 * time.Millisecond)
+			node.ReleaseCS(ctx)
+			log.Printf("[Node %d] exit CS", node.id)
+		}(n)
 	}
 
 }
