@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package ricart; // arbitrary proto package name
+
+// Replace with your actual module path + directory containing the generated files.
+// The part after ';' is the Go package name used in imports.
+option go_package = "github.com/KumaSC/ricart_agrawala/proto;ricartpb";
+
+service Coordinator {
+  rpc Request (RequestMsg) returns (ReplyMsg);
+  rpc Release (ReleaseMsg) returns (Ack);
+}
+
+message RequestMsg {
+  int32 node_id = 1;
+  int64 timestamp = 2;
+}
+
+message ReplyMsg {
+  bool ok = 1;
+}
+
+message ReleaseMsg {
+  int32 node_id = 1;
+  int64 timestamp = 2;
+}
+
+message Ack {}
