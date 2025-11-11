@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package grpc;
+
+option go_package = "consensus-go/grpc";
+
+message Nothing {}
+
+message Ok {
+  uint32 lamport = 1;
+}
+
+message Request {
+  uint32 lamport = 1;
+  string ip = 2;
+  uint32 port = 3;
+}
+
+message GossipInfo {
+  uint32 lamport = 1;
+  string ip = 2;
+  uint32 port = 3;
+
+  string senderIp = 4;
+  uint32 senderPort = 5;
+}
+
+service ConsensusService {
+  rpc AcceptRequest(Ok) returns (Nothing);
+  rpc RequestAccess(Request) returns (Nothing);
+  rpc Gossip(GossipInfo) returns (Nothing);
+}
+
+//message DiscoveryServiceEvent {
+//  uint64 timestamp = 1;
+//
+//  oneof event {
+//    Accepted accepted_event = 2;
+//    Heartbeat heartbeat_event = 3;
+//  }
+//
+//  message Accepted {
+//    uint32 id = 1;
+//  }
+//
+//  message Heartbeat {}
+//
+//  message NewNodeJoined {
+//    NodeInfo nodeinfo = 1;
+//  }
+//}
+//
+//service DiscoveryService {
+//  rpc Join( NodeInfo ) returns (stream DiscoveryServiceEvent);
+//  rpc Disconnect( NodeInfo ) returns ( Nothing );
+//
+//  rpc HowManyNodes() returns ( uint32 );
+//}
+//
+
