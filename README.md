@@ -2,7 +2,7 @@
 The application implements a peer-to-peer node using the Ricart-Agrawala algorithm for distributed mutual exclusion. 
 
 ### Warning
-Please note that the implementation assumes that there is a reliable message delivery and no process failures (even thought this obviously is impossible in the real world).
+Please note that the implementation assumes that there is a reliable message delivery and no process failures (even thought this obviously is impossible in the real world as networks are unreliable).
 
 ## Running the Program
 To run the program use the command:
