@@ -15,7 +15,7 @@ go run node/node.go localhost 5000
 ```
 This node will initialize the network and exist on `localhost` with port `5000`.
 
-3. Start additional nodes (connect to an existing node):
+2. Start additional nodes (connect to an existing node):
 ```
 go run node/node.go localhost 5001 localhost 5000
 go run node/node.go localhost 5002 localhost 5001
