@@ -2,6 +2,9 @@ package queue
 
 import "sync"
 
+// Please note: An atomic queue is actually not required for the implementation of Ricart-Agrawala, as we simply need to store the deferred requests in an atomic list without regard for any actual order.
+// We realized too late, and cba rewriting it, so deal with it :)
+
 type Cons[T any] struct {
 	value T
 	next *Cons[T]
